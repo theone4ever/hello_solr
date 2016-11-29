@@ -1,5 +1,4 @@
 import akka.actor.Actor
-import akka.util.Timeout
 import io.ino.solrs.AsyncSolrClient
 import org.apache.solr.client.solrj.SolrQuery
 import org.apache.solr.client.solrj.impl.XMLResponseParser
@@ -31,10 +30,13 @@ class SolrSearchActor extends Actor {
             .build
 
           val response: Future[QueryResponse] = solr.query(new SolrQuery(query))
+          // This is like closure, we have to use this tricky since in the context of onSuccess
+          // method below, it will be another sender.
+          val oldSender = sender()
           response.onSuccess {
             case qr => {
               println(s"found ${qr.getResults.getNumFound} docs")
-              sender ! qr.getResults.toList
+              oldSender ! qr.getResults.toList
               solr.shutdown()
             }
           }

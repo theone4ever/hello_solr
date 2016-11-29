@@ -28,22 +28,19 @@ case class Document(fileName: String,
 object WebServer {
 
 
-  // formats for unmarshalling and marshalling
-//    implicit val orderM: ToResponseMarshaller[List[SolrDocument]] = ???
   implicit val documentFormat = jsonFormat3(Document)
+  implicit val system = ActorSystem()
+  implicit val materializer = ActorMaterializer()
+  implicit val timeout = Timeout(3 seconds)
 
-  // (fake) async database query api
 
   def main(args: Array[String]) {
 
-    // needed to run the route
-    implicit val system = ActorSystem()
-    implicit val materializer = ActorMaterializer()
 
     val route: Route = path("search") {
       get {
         parameter("query".as[String]) { query =>
-          val future: Future[List[SolrDocument]] = search(query)
+          val future = search(query)
           onSuccess(future) {
             case list: List[SolrDocument] => {
               val docList: List[Document] = list.map { doc => Document(
@@ -64,14 +61,8 @@ object WebServer {
   }
 
   def search(query: String): Future[List[SolrDocument]] = {
-    // needed to run the route
-    implicit val system = ActorSystem()
-    implicit val timeout = Timeout(15 seconds)
-
-    //    val system = ActorSystem("System")
     val solrSearchActor = system.actorOf(Props(new SolrSearchActor()))
     val future = solrSearchActor ? SearchRequest(query)
-    Await.result(future, 5 second)
     future.mapTo[List[SolrDocument]]
   }
 }
